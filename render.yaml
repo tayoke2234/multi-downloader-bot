@@ -1,26 +1,19 @@
-# This is a render.yaml file.
-# It tells Render how to build and run your service.
-# Make sure it's in the root of your repository.
+# Render.yaml for a Python Telegram Bot with FFMPEG
 
 services:
-  - type: web      # 'web' type can run background tasks and has a free tier.
-    name: my-telegram-bot # You can change this name.
-    env: python    # The programming language.
-    plan: free     # IMPORTANT: Use the free instance type.
-    
-    # Commands to build your service.
-    buildCommand: |
-      pip install --upgrade pip
-      pip install -r requirements.txt
-      
-    # Command to start your service.
-    startCommand: "python bot.py"
-    
-    # System dependencies like ffmpeg are defined here.
-    # This is the correct way to install them on Render.
-    buildFilter:
-      paths:
-        - "src/**"
+  - type: web
+    name: my-telegram-bot  # You can change this name
+    env: python
+    plan: free
+
+    # System packages like ffmpeg are installed here
+    # This block should be at the same level as 'type', 'name', etc.
     nativeEnvironment:
       build: |
         apt-get update && apt-get install -y ffmpeg
+
+    # Python packages are installed with the build command
+    buildCommand: "pip install -r requirements.txt"
+
+    # The command to start your bot
+    startCommand: "python bot.py"
