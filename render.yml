@@ -21,12 +21,3 @@ services:
     
     # Environment Variables တွေကို ဒီမှာလည်း သတ်မှတ်နိုင်ပါတယ်။
     # ဒါမှမဟုတ် Dashboard မှာ ထည့်ထားရင်လည်း ရပါတယ်။
-    envVars:
-      - key: TELEGRAM_TOKEN
-        fromService:
-          type: envVarGroup
-          name: telegram-keys # Render မှာ သင်สร้างထားတဲ့ group နာမည်
-      - key: GEMINI_API_KEY
-        fromService:
-          type: envVarGroup
-          name: telegram-keys # Render မှာ သင်สร้างထားတဲ့ group နာမည်
