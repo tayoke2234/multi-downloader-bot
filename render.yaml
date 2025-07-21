@@ -1,0 +1,23 @@
+# render.yaml using Docker
+
+services:
+  - type: web
+    name: my-telegram-bot # You can change this name
+    env: docker           # IMPORTANT: Set environment to 'docker'
+    plan: free
+
+    # Docker-specific settings
+    dockerfilePath: ./Dockerfile
+    
+    # Environment variables (API Keys)
+    # Make sure you have an environment group in Render dashboard
+    # or add them directly here.
+    envVars:
+      - key: TELEGRAM_TOKEN
+        fromService:
+          type: envVarGroup
+          name: telegram-keys # The name of your env group on Render
+      - key: GEMINI_API_KEY
+        fromService:
+          type: envVarGroup
+          name: telegram-keys # The name of your env group on Render
