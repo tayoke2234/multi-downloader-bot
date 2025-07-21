@@ -1,15 +1,11 @@
-# bot.py
+# bot.py (Updated Version)
 
 import os
 import logging
-import requests
-from io import BytesIO
 
 import telegram
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, CallbackQueryHandler, ContextTypes
-
-import google.generativeai as genai
 
 # yt-dlp ကို video info နဲ့ download အတွက် သုံးပါမယ်။
 import yt_dlp
@@ -17,12 +13,7 @@ import yt_dlp
 # --- လုံခြုံရေးအတွက် API Key များကို Environment Variables မှတစ်ဆင့် ရယူခြင်း ---
 # ဒီ key တွေကို Render.com မှာ သတ်မှတ်ပေးရပါမယ်။
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-
-# Gemini AI ကို ပြင်ဆင်ခြင်း
-genai.configure(api_key=GEMINI_API_KEY)
-# Gemini Pro Vision model ကိုသုံးပြီး ပုံတွေကို နားလည်စေပါမယ်။
-vision_model = genai.GenerativeModel('gemini-pro-vision')
+# Gemini API Key မလိုအပ်တော့ပါဘူး။
 
 # Logging ကို enable လုပ်ထားပါမယ်။ Error ရှာရလွယ်အောင်ပါ။
 logging.basicConfig(
@@ -74,7 +65,6 @@ async def handle_link(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
             # context မှာ video info ကို ခဏသိမ်းထားမယ်။
             context.user_data[video_id] = {
                 'title': video_title,
-                'thumbnail_url': thumbnail_url,
                 'video_url': video_url
             }
 
@@ -91,29 +81,25 @@ async def handle_link(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
                     callback_data=f"download_audio_{video_id}"
                 )])
 
-            # Video Formats (360p, 480p)
-            video_resolutions = [360, 480]
-            for res in video_resolutions:
-                # mp4 format ကိုပဲရွေးမယ်။ audio ပါပြီးသားဖြစ်ရမယ်။
-                video_format = [
-                    f for f in formats 
-                    if f.get('height') == res and f.get('ext') == 'mp4' and f.get('acodec') != 'none'
-                ]
-                if video_format:
-                    # အကောင်းဆုံး format ကိုရွေးမယ်
-                    best_video = max(video_format, key=lambda f: f.get('tbr', 0))
-                    file_size = format_bytes(best_video.get('filesize') or best_video.get('filesize_approx'))
-                    keyboard.append([InlineKeyboardButton(
-                        f"🎬 {res}p Video ({file_size})",
-                        callback_data=f"download_video_{res}_{video_id}"
-                    )])
-            
-            # AI Cover Art Button
-            if thumbnail_url:
-                keyboard.append([InlineKeyboardButton(
-                    "🎨 AI Music Cover Art ဖန်တီးမယ်",
-                    callback_data=f"generate_art_{video_id}"
-                )])
+            # Video Formats (360p, 480p, 720p, 1080p)
+            video_resolutions = [360, 480, 720, 1080]
+            found_resolutions = set()
+
+            for f in formats:
+                height = f.get('height')
+                if height in video_resolutions and height not in found_resolutions:
+                    # mp4 format ကိုပဲရွေးမယ်။ audio ပါပြီးသားဖြစ်ရမယ်။
+                    if f.get('ext') == 'mp4' and f.get('acodec') != 'none':
+                        file_size = format_bytes(f.get('filesize') or f.get('filesize_approx'))
+                        keyboard.append([InlineKeyboardButton(
+                            f"🎬 {height}p Video ({file_size})",
+                            callback_data=f"download_video_{height}_{video_id}"
+                        )])
+                        found_resolutions.add(height)
+
+            if not keyboard:
+                await processing_message.edit_text("❌ দুঃখিত, ဒီ link အတွက် download လုပ်နိုင်တဲ့ format တွေ ရှာမတွေ့ပါဘူး။")
+                return
 
             reply_markup = InlineKeyboardMarkup(keyboard)
             
@@ -193,56 +179,15 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         except Exception as e:
             logging.error(f"Download failed: {e}")
             await query.edit_message_text(text=f"❌ Download လုပ်ရာတွင် အမှားတစ်ခုဖြစ်ပွားပါတယ်။: {e}")
-
-    elif action == "generate":
-        video_id = parts[-1]
-        video_info = context.user_data.get(video_id, {})
-        thumbnail_url = video_info.get('thumbnail_url')
-        video_title = video_info.get('title', 'a song')
-
-        if not thumbnail_url:
-            await query.edit_message_text(text="Error: Thumbnail not found.")
-            return
-        
-        await query.edit_message_text(text="🎨 AI ကို Cover Art ဖန်တီးခိုင်းနေပါတယ်။ ခဏစောင့်ပေးပါ...")
-
-        try:
-            # Thumbnail ပုံကို download ဆွဲမယ်
-            response = requests.get(thumbnail_url)
-            img = BytesIO(response.content)
-            img.seek(0) # Reset buffer position
-            
-            # Gemini Pro Vision ကိုသုံးပြီး ပုံကိုဖော်ပြခိုင်းမယ်၊ ပြီးတော့ cover art idea တောင်းမယ်။
-            # မှတ်ချက်: Gemini Pro Vision ဟာ ပုံအသစ်ဖန်တီးပေးတာမဟုတ်ဘဲ၊ ရှိပြီးသားပုံကို နားလည်ပြီး စာသားဖန်တီးပေးတာပါ။
-            # ဒီကနေရတဲ့ idea ကို တခြား Text-to-Image AI (ဥပမာ Midjourney) မှာသုံးနိုင်ပါတယ်။
-            # ဒီမှာတော့ Gemini ကိုပဲသုံးပြီး creative description ဖန်တီးခိုင်းပါမယ်။
-            
-            prompt = (
-                f"This is a thumbnail for a video titled '{video_title}'. "
-                "Analyze the image and the title. Based on them, write a creative and evocative description for a music album cover. "
-                "Describe the mood, the colors, the style, and the overall concept. "
-                "Make it sound like a professional art director's brief. "
-                "Start with 'Album Cover Concept:'"
-            )
-
-            # Gemini API call
-            response = vision_model.generate_content([prompt, {'mime_type': 'image/jpeg', 'data': img.read()}])
-            
-            ai_description = response.text
-
-            await query.edit_message_text(text=ai_description)
-
-        except Exception as e:
-            logging.error(f"AI generation failed: {e}")
-            await query.edit_message_text(text=f"❌ AI Cover Art ဖန်တီးရာတွင် အမှားတစ်ခုဖြစ်ပွားပါတယ်။: {e}")
-
+    
+    # AI Cover Art feature ကို ဖြုတ်လိုက်ပါပြီ။
 
 def main() -> None:
     """Bot ကို စတင်လည်ပတ်စေရန်။"""
-    if not TELEGRAM_TOKEN or not GEMINI_API_KEY:
+    if not TELEGRAM_TOKEN:
         print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
-        print("!!! ERROR: TELEGRAM_TOKEN or GEMINI_API_KEY not found !!!")
-        print("!!! Please set them in your environment variables.     !!!")
+        print("!!! ERROR: TELEGRAM_TOKEN not found                  !!!")
+        print("!!! Please set it in your environment variables.     !!!")
         print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
         return
 
