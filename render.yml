@@ -1,0 +1,32 @@
+services:
+  - type: web # Web Service အမျိုးအစားကို သုံးပါမယ်။
+    name: my-multi-downloader-bot # သင့် bot ရဲ့ နာမည် (ကြိုက်သလိုပြောင်းနိုင်)
+    env: python
+    plan: free # Free plan ကိုသုံးပါမယ်
+    
+    # System dependencies တွေကို ဒီနေရာမှာ ထည့်ပေးရပါမယ်။
+    # apt-get ကို ဒီနေရာမှာပဲ သုံးလို့ရပါတယ်။
+    buildFilter:
+      paths:
+        - "src/**"
+    nativeEnvironment:
+      build: |
+        apt-get update && apt-get install -y ffmpeg
+        
+    # Python library တွေကို install လုပ်မယ့် command
+    buildCommand: "pip install -r requirements.txt"
+    
+    # Bot ကို run မယ့် command
+    startCommand: "python bot.py"
+    
+    # Environment Variables တွေကို ဒီမှာလည်း သတ်မှတ်နိုင်ပါတယ်။
+    # ဒါမှမဟုတ် Dashboard မှာ ထည့်ထားရင်လည်း ရပါတယ်။
+    envVars:
+      - key: TELEGRAM_TOKEN
+        fromService:
+          type: envVarGroup
+          name: telegram-keys # Render မှာ သင်สร้างထားတဲ့ group နာမည်
+      - key: GEMINI_API_KEY
+        fromService:
+          type: envVarGroup
+          name: telegram-keys # Render မှာ သင်สร้างထားတဲ့ group နာမည်
