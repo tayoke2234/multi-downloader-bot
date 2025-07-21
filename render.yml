@@ -1,23 +1,26 @@
+# This is a render.yaml file.
+# It tells Render how to build and run your service.
+# Make sure it's in the root of your repository.
+
 services:
-  - type: web # Web Service အမျိုးအစားကို သုံးပါမယ်။
-    name: my-multi-downloader-bot # သင့် bot ရဲ့ နာမည် (ကြိုက်သလိုပြောင်းနိုင်)
-    env: python
-    plan: free # Free plan ကိုသုံးပါမယ်
+  - type: web      # 'web' type can run background tasks and has a free tier.
+    name: my-telegram-bot # You can change this name.
+    env: python    # The programming language.
+    plan: free     # IMPORTANT: Use the free instance type.
     
-    # System dependencies တွေကို ဒီနေရာမှာ ထည့်ပေးရပါမယ်။
-    # apt-get ကို ဒီနေရာမှာပဲ သုံးလို့ရပါတယ်။
+    # Commands to build your service.
+    buildCommand: |
+      pip install --upgrade pip
+      pip install -r requirements.txt
+      
+    # Command to start your service.
+    startCommand: "python bot.py"
+    
+    # System dependencies like ffmpeg are defined here.
+    # This is the correct way to install them on Render.
     buildFilter:
       paths:
         - "src/**"
     nativeEnvironment:
       build: |
         apt-get update && apt-get install -y ffmpeg
-        
-    # Python library တွေကို install လုပ်မယ့် command
-    buildCommand: "pip install -r requirements.txt"
-    
-    # Bot ကို run မယ့် command
-    startCommand: "python bot.py"
-    
-    # Environment Variables တွေကို ဒီမှာလည်း သတ်မှတ်နိုင်ပါတယ်။
-    # ဒါမှမဟုတ် Dashboard မှာ ထည့်ထားရင်လည်း ရပါတယ်။
